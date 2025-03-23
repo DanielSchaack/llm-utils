@@ -1,6 +1,11 @@
 from ollama import Client
-from config_conversational import ConversationalConfigManager, Options, Prompt
-import argparse
+from config import Options, Prompt
+import asyncio
+
+
+class EndOfService(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 
 class ConversationalLlmManager():
@@ -11,9 +16,10 @@ class ConversationalLlmManager():
             host=self.options.host
         )
         self.eos: bool = False
+        self.message_queue = asyncio.Queue()
         self.messages: list = []
-        self.messages.append(self.add_message("system", self.get_formatted_prompt(self.active_prompt)))
-        self.last_user_message = self.add_message("user", "")
+        self.add_message("system", self.get_formatted_prompt(self.active_prompt), False)
+        self.last_user_message = self.new_message("user", "")
 
     def update_active_prompt(self, active_prompt: Prompt):
         self.active_prompt = active_prompt
@@ -22,22 +28,28 @@ class ConversationalLlmManager():
     def update_options(self, options: Options):
         self.options = options
 
-    def add_message(self, role: str, content: str):
+    def new_message(self, role: str, content: str):
         message = {
             "role": role,
             "content": content
         }
         return message
 
+    def add_message(self, role: str, content: str, add_to_queue: bool = True):
+        message = self.new_message(role, content)
+        self.messages.append(message)
+        if add_to_queue:
+            self.message_queue.put_nowait(message)
+
     def clear_messages(self):
         self.messages.clear()
-        self.messages.append(self.add_message("system", self.get_formatted_prompt(self.active_prompt)))
+        self.add_message("system", self.get_formatted_prompt(self.active_prompt))
 
     def get_formatted_prompt(self, prompt_name: str) -> str:
         formatted_prompt = self.active_prompt.prompt
 
         if self.active_prompt.appends.get('language'):
-            formatted_prompt += f" The answer MUST be in {self.active_prompt.appends.get("language")}."
+            formatted_prompt += f" The answer MUST be in {self.active_prompt.appends.get('language')}."
         else:
             formatted_prompt += " The answer MUST be in the same language as the user provided."
 
@@ -56,18 +68,22 @@ class ConversationalLlmManager():
         return formatted_prompt
 
     def process_text(self, input: str):
+        if not input:
+            return
+
         if input == self.options.eom:
-            self.messages.append(self.last_user_message)
-            self.last_user_message = self.add_message("user", "")
+            self.add_message("user", self.last_user_message["content"])
             self.send_messages()
+            return
 
         if input == self.options.eos:
             self.eos = True
+            self.add_message("", "")
+            return
 
         self.last_user_message["content"] = input
 
     def send_messages(self):
-        print(self.messages)
         stream = self.client.chat(
             model=self.active_prompt.model,
             messages=self.messages,
@@ -80,14 +96,10 @@ class ConversationalLlmManager():
             }
         )
 
-        current_message = self.add_message("assistant", "")
-        self.messages.append(current_message)
         current_sentence = ""
         current_response = ""
         for chunk in stream:
             current_token = chunk["message"]["content"]
-            self.messages[-1]["content"] = current_response
-
             if self.options.stream:
                 if "\n" in current_token:
                     print(current_sentence)
@@ -103,16 +115,5 @@ class ConversationalLlmManager():
         else:
             print(current_response)
 
+        self.add_message("assistant", current_response)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Executes a NLP task on a single line of text utilising ollama as a conversation")
-    parser.add_argument("--config", default="./config_conversational.yaml", help="The config file to load")
-    parser.add_argument("--prompt", default="default", help="The prompt's name")
-    args = parser.parse_args()
-
-    config_manager = ConversationalConfigManager(args.config)
-    llm_manager = ConversationalLlmManager(config_manager.get_options(), config_manager.get_prompt(args.prompt))
-
-    while not llm_manager.eos:
-        current_line = input()
-        llm_manager.process_text(current_line)

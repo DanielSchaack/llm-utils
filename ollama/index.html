@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Transcription Results</title>
+        <style>
+        body {
+            background-color: white;
+        }
+        .night-mode {
+            background-color: #121212;
+        }
+        .container {
+            width: 75%;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-family: system-ui;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .action-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+        }
+        .round-box {
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .system {
+            margin-bottom: 10px;
+            background-color: #8eb0fa;
+            align-self: stretch;
+        }
+        .message {
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+            flex-shrink: 0;
+            max-width: 75%;
+            word-wrap: break-word; 
+            overflow-wrap: break-word;
+        }
+        .user {
+            background-color: #d1c4e9;
+            align-self: flex-end;
+        }
+        .assistant {
+            background-color: #d9d9d9;
+            align-self: flex-start;
+        }
+        #messageInput {
+            flex-grow: 1;
+            flex-basis: 0;
+        }
+        #clearButton {
+            background-color: #eb6e6e;
+            transition: all 0.3s ease;
+        }
+        #clearButton:hover {
+            background-color: #e63939;
+        }
+        #clearButton:active {
+            opacity: 0.7;
+        }
+        pre {
+            white-space: pre-wrap;
+        }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="message-container"></div>
+            <div class="action-container">
+                <textarea id="messageInput" class="round-box" placeholder="Send a message..."></textarea>
+                <button id="clearButton" class="round-box">Clear chat</button>
+            </div>
+
+        </div>
+        
+        <!-- add markdown parsing --> 
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+        <!-- add syntax highlighting inside <code> blocks --> 
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script>
+
+
+        <!-- Check and adjust bg-color based on light/dark system settings --> 
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const prefersDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                if (prefersDarkMode) {
+                    document.body.classList.add('night-mode');
+                }
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                    if (e.matches) {
+                        document.body.classList.add('night-mode');
+                    } else {
+                        document.body.classList.remove('night-mode');
+                    }
+                });
+            });
+        </script>
+
+        <!-- SSE - Logic for message handling --> 
+        <script>
+            /**
+             * Adds a message to the message container with class based on provided role
+             *
+             * @param {Object} message
+             * @param {string} message.role - Either system, user or assistant
+             * @param {string} message.content
+             */
+            function addMessage(message) {
+                let classLable = "";
+                if ( message.role === "system") {
+                    classLable = message.role;
+                } else {
+                    classLable = "message " + message.role;
+                }
+
+                let newMessage = "<div class=\"round-box " + classLable + "\"></div>";
+                let messageContainer = document.getElementsByClassName('message-container')[0];
+                messageContainer.innerHTML += newMessage;
+                messageContainer.lastChild.innerHTML = marked.parse(message.content);
+            }
+
+            function getMessageContainerInnerHtml() {
+                let messageContainer = document.getElementsByClassName('message-container')[0];
+                return messageContainer.innerHTML;
+            }
+
+            function appendMessageContainer(html) {
+                let messageContainer = document.getElementsByClassName('message-container')[0];
+                messageContainer.innerHTML += html;
+            }
+
+            function clearMessageContainer() {
+                let messageContainer = document.getElementsByClassName('message-container')[0];
+                messageContainer.innerHTML = '';
+            }
+
+            function scrollToBottom() {
+                var div = document.body;
+                div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            };
+
+            /**
+             * Adds a message to the message container with class based on provided role
+             *
+             * @param {Object} message
+             * @param {string} message.role - Either system, user or assistant
+             * @param {string} message.content
+             */
+            function waitAndProcessMessages(message) {
+                const messageContainer = document.getElementsByClassName('message-container')[0];
+
+                if (messageContainer && messageContainer.children.length > 0) {
+                console.log("Messages found!");
+                } else {
+                  console.log("No previous messages yet - waiting...");
+                  setTimeout(waitAndProcessMessages, 50); 
+                }
+            }
+
+            let fallbackMessages = [
+                {
+                    "role": "user",
+                    "content": "Oh, looks like either no messages as been provided by the server or an error occured!"
+                },
+                {
+                    "role": "assistant",
+                    "content": "Man, that sucks. Might want to look into the logs for some clues as to what happened."
+                },
+            ];
+
+
+            const eventSource = new EventSource('messages-stream');
+            eventSource.onopen = function() {
+                console.log("Event Source opened, clearing existing messages");
+
+                fetch('/messages')
+                    .then(response => {
+                        console.log("received response: ", response);
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Got an ok, data: ", data);
+                        let messages = JSON.parse(data);
+                        const currentMessages = getMessageContainerInnerHtml();
+                        clearMessageContainer();
+                        messages.forEach(addMessage);
+                        appendMessageContainer(currentMessages);
+                    })
+                    .catch(error => {
+                        console.error("Fetching current messages failed, loading fallback. Error: ", error);
+                        fallbackMessages.forEach(addMessage);
+                    })
+                ;
+                scrollToBottom();
+            }
+
+
+            eventSource.onmessage = function(event) {
+                console.log(event.data)
+                try{
+                    const messageJson = JSON.parse(event.data);
+                    messageJson.forEach(addMessage);
+                    scrollToBottom();
+                } catch (error) {
+                    console.error(error)
+                }
+            }
+
+            eventSource.onclose = function() {
+                console.log("Event Source closed");
+            }
+
+            eventSource.onerror = function() {
+                console.log("Event Source caused an error");
+                let messageContainer = document.getElementsByClassName('message-container')[0];
+                if ( messageContainer.children.length === 0){
+                    console.log("No messages after an error available, adding fallback messages");
+                    fallbackMessages.forEach(addMessage);
+                }
+                eventSource.close();
+            }
+        </script>
+
+        <!-- Logic for messageInput textarea -->
+        <script>
+            function postMessage(message){
+                fetch(
+                    "/messages",
+                    {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': 'text/plain'
+                        },
+                        body: message
+                    }
+                ).then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    let inputMessageArea = document.getElementById('messageInput');
+                    inputMessageArea.value = "";
+                }).catch(error => {console.error(error);});
+            }
+            
+            let inputMessageArea = document.getElementById("messageInput");
+            inputMessageArea.addEventListener("keydown", function(event) {
+                console.log(inputMessageArea.value);
+                if ( event.key === "Enter" && !event.shiftKey ){
+                    if(inputMessageArea.value.length === 0){
+                        return;
+                    }
+                    console.log("Checking last message");
+                    const messages = document.getElementsByClassName("message");
+                    event.preventDefault();
+                    if (messages.length > 0) {
+                        const lastMessage = messages[messages.length -1];
+                        if ( lastMessage.role === "user" ) {
+                            console.log("Last message is from user, not doing anything");
+                            return;
+                        }
+                    }
+                    console.log("Last message is not from user, sending message to server");
+                    postMessage(inputMessageArea.value);
+                }
+            });
+        </script>
+
+        <!-- Logic for clearButton -->
+        <script>
+            let clearButton = document.getElementById('clearButton');
+            clearButton.onclick = function() {
+                fetch(
+                    "/messages",
+                    {
+                        method: "DELETE"
+                    }
+                ).then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    clearMessageContainer();
+                    let inputMessageArea = document.getElementById('messageInput');
+                    inputMessageArea.value = "";
+                }).catch(error => {console.error(error);});
+            };
+        </script>
+    </body>
+</html>
+

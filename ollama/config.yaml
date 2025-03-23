@@ -4,7 +4,7 @@ options:
   eos: ">><<"
   stream: true
   print_to_terminal: true
-  server: false
+  server: true
   single_time: false
 
 prompts:
