@@ -46,24 +46,25 @@ class ConversationalLlmManager():
         self.add_message("system", self.get_formatted_prompt(self.active_prompt))
 
     def get_formatted_prompt(self, prompt_name: str) -> str:
-        formatted_prompt = self.active_prompt.prompt
+        formatted_prompt: str = ""
 
-        if self.active_prompt.appends.get('language'):
-            formatted_prompt += f" The answer MUST be in {self.active_prompt.appends.get('language')}."
-        else:
-            formatted_prompt += " The answer MUST be in the same language as the user provided."
+        if self.active_prompt.structure.get("task"):
+            formatted_prompt += self.active_prompt.structure.get("task")
 
-        if self.active_prompt.appends.get("summarize"):
-            formatted_prompt += self.active_prompt.appends.get("summarize")
+        if self.active_prompt.structure.get("role"):
+            formatted_prompt += self.active_prompt.structure.get("role")
 
-        if self.active_prompt.appends.get("questioning"):
-            formatted_prompt += self.active_prompt.appends.get("questioning")
+        if self.active_prompt.structure.get("requirements"):
+            formatted_prompt += self.active_prompt.structure.get("requirements")
 
-        if self.active_prompt.appends.get("concise"):
-            formatted_prompt += self.active_prompt.appends.get("concise")
+        if self.active_prompt.structure.get("rules"):
+            formatted_prompt += self.active_prompt.structure.get("rules")
 
-        if self.active_prompt.appends.get("new_lines"):
-            formatted_prompt += self.active_prompt.appends.get("new_lines")
+        if self.active_prompt.structure.get("examples"):
+            formatted_prompt += self.active_prompt.structure.get("examples")
+
+        if self.active_prompt.structure.get("formatting"):
+            formatted_prompt += self.active_prompt.structure.get("formatting")
 
         return formatted_prompt
 

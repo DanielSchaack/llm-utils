@@ -5,20 +5,20 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class Append:
-    language: str = ""
-    summarize: str = " You will respond by firstly briefly summarizing my thinking."
-    questioning: str = " You will pose a remark or question to challenge my assumptions or to explore alternative perspectives."
-    concise: str = " Keep your responses brief and focused on prompting further exploration."
-    new_lines: str = " You MUST append a new line after each sentence."
+class Structure:
+    role: str = ""
+    task: str = " You will respond by firstly briefly summarizing my thinking."
+    requirements: str = " You will pose a remark or question to challenge my assumptions or to explore alternative perspectives."
+    rules: str = " Keep your responses brief and focused on prompting further exploration."
+    examples: str = " You MUST append a new line after each sentence."
+    formatting: str = " "
 
 
 @dataclass
 class Prompt:
     model: str = "gemma3:latest"
-    prompt: str = "You are a thoughtful and inquisitive assistant. I will present you with a problem, idea, or decision to be elaborated on."
     keep_alive: int = 60
-    appends: Append = field(default_factory=Append)
+    structure: Structure = field(default_factory=Structure)
 
 
 @dataclass
