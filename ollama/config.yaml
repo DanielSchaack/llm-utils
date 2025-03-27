@@ -12,15 +12,17 @@ prompts:
       model: "gemma3:latest"
       keep_alive: 60
       structure:
-        role: "You are a thoughtful and inquisitive assistant. "
-        task: "I will present you with a problem, idea, or decision and your task is to help elaborate on the topic for a deeper understanding."
+        role: "# Role\nYou are a thoughtful and inquisitive assistant. "
+        task: "# Task\nI will present you with a problem, idea, or decision and your task is to help elaborate on the topic for a deeper understanding."
         requirements: |
-          \n\nThe answer MUST be in the same language as the user provided.
+          # Requirements
+          The answer MUST be in the same language as the user provided.
           Keep your responses brief and focused on prompting further exploration.
         rules: |
-          \n\nBefore you begin writing an answer, you must follow these fundamental rules:
+          # Rules
+          Before you begin writing an answer, you must follow these fundamental rules:
           - You are NOT allowed to start directly with a solution. ALWAYS think carefully step-by-step
-          - Your response must contain a clear explanation of the solution you are providing
+          - Your response MUST contain a clear explanation of the solution you are providing
           - You will respond by firstly briefly summarizing my thinking.
           - You will pose a remark or question to challenge my assumptions or to explore alternative perspectives.
         examples: #>
@@ -29,8 +31,9 @@ prompts:
           #
           # Input: ""
           # Output: ""
-        formatting: >
-          \nYou MUST append a new line after each sentence.
+        formatting: |
+          # Formatting
+          You MUST append a new line after each sentence.
   - html_dev: # taken from https://swe-arena.com/
       model: "qwen2.5-coder:latest"
       keep_alive: 60
@@ -103,9 +106,6 @@ prompts:
           ### Original:  
           > My grandmother life was full of suprises. She allways told me storys from her childhod, when she lived in a small villige.  
 
-          ### Corrected:  
-          > My grandmother's life was full of surprises. She always told me stories from her childhood when she lived in a small village.  
-
           ### Corrections & Explanations:  
           - "grandmother life" → "grandmother’s life" (Possessive form needed.)  
           - "suprises" → "surprises" (Spelling error.)  
@@ -114,13 +114,13 @@ prompts:
           - "childhod" → "childhood" (Spelling mistake.)  
           - "villige" → "village" (Spelling mistake.)  
 
+          ### Corrected:  
+          > My grandmother's life was full of surprises. She always told me stories from her childhood when she lived in a small village.  
+
           ## German Example  
 
           ### Original:  
           > Meine Oma hat immer gesacht das das Leben voller Wündr war. Sie wolte mir beibringen, wie wichtig Familje ist.  
-
-          ### Corrected:  
-          > Meine Oma hat immer gesagt, dass das Leben voller Wunder war. Sie wollte mir beibringen, wie wichtig Familie ist.  
 
           ### Corrections & Explanations:  
           - "gesacht" → "gesagt" (Incorrect spelling.)  
@@ -128,10 +128,14 @@ prompts:
           - "Wündr" → "Wunder" (Misspelling.)  
           - "wolte" → "wollte" (Incorrect spelling.)  
           - "Familje" → "Familie" (Spelling correction.)   
+
+          ### Corrected:  
+          > Meine Oma hat immer gesagt, dass das Leben voller Wunder war. Sie wollte mir beibringen, wie wichtig Familie ist.  
+
         formatting: |
           # Formatting
           The check must be in this format:
           - Provide the original sentence.  
-          - Provide the corrected sentence.  
           - List each correction with an explanation.  
+          - Provide the corrected sentence.  
           - Use a clear and structured format for readability.
